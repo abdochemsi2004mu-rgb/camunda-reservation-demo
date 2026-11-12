@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Camunda 8 Reservation Demo</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --accent: #4f46e5;
+      --accent-dark: #4338ca;
+      --accent-soft: #eef2ff;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --success: #15803d;
+      --success-soft: #f0fdf4;
+      --success-line: #bbf7d0;
+      --danger: #b91c1c;
+      --danger-soft: #fef2f2;
+      --danger-line: #fecaca;
+      --radius: 18px;
+      --shadow: 0 24px 60px rgba(15, 23, 42, 0.10);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+        sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at 15% 0%, #e0e7ff 0%, transparent 40%),
+        radial-gradient(circle at 85% 100%, #e0f2fe 0%, transparent 45%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    main {
+      width: min(620px, 100%);
+      background: var(--card);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      border-radius: var(--radius);
+      padding: clamp(24px, 5vw, 40px);
+      box-shadow: var(--shadow);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 14px 0 8px;
+      font-size: clamp(1.5rem, 4vw, 1.9rem);
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      line-height: 1.3;
+    }
+
+    .subtitle {
+      margin: 0 0 26px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.55;
+    }
+
+    form {
+      display: grid;
+      gap: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      font-size: 0.88rem;
+      font-weight: 650;
+    }
+
+    input {
+      width: 100%;
+      font: inherit;
+      padding: 11px 13px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: #fff;
+      color: var(--text);
+      transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.16);
+    }
+
+    .btn {
+      font: inherit;
+      font-weight: 650;
+      padding: 12px 18px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 120ms ease, border-color 120ms ease,
+        color 120ms ease, transform 120ms ease;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn.primary:hover {
+      background: var(--accent-dark);
+    }
+
+    .btn.secondary {
+      background: #fff;
+      border-color: var(--line);
+      color: var(--text);
+    }
+
+    .btn.secondary:hover {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    form .btn {
+      margin-top: 4px;
+    }
+
+    .alert {
+      margin-top: 16px;
+      padding: 13px 15px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .alert.error {
+      background: var(--danger-soft);
+      border: 1px solid var(--danger-line);
+      color: #7f1d1d;
+    }
+
+    .alert p {
+      margin: 0 0 10px;
+    }
+
+    .alert .btn {
+      padding: 8px 12px;
+      font-size: 0.85rem;
+    }
+
+    .status-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 16px;
+      border-radius: 14px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      transition: background 160ms ease, border-color 160ms ease;
+    }
+
+    #status-section.final.confirmed .status-top {
+      background: var(--success-soft);
+      border-color: var(--success-line);
+    }
+
+    #status-section.final.denied .status-top {
+      background: var(--danger-soft);
+      border-color: var(--danger-line);
+    }
+
+    .status-icon {
+      width: 44px;
+      height: 44px;
+      flex: none;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .status-icon.success {
+      background: var(--success-soft);
+      color: var(--success);
+    }
+
+    .status-icon.danger {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .status-message {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .timeline {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      margin: 26px 0 22px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      top: 16px;
+      left: 12.5%;
+      right: 12.5%;
+      height: 2px;
+      background: var(--line);
+    }
+
+    .timeline li {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.3;
+    }
+
+    .timeline .dot {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      border: 2px solid var(--line);
+      background: var(--card);
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 700;
+      transition: background 160ms ease, border-color 160ms ease,
+        color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .timeline li.done .dot {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .timeline li.active .dot {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+
+    .timeline li.active .step-label {
+      color: var(--text);
+      font-weight: 650;
+    }
+
+    .timeline li.skipped .dot {
+      color: #cbd5e1;
+      border-style: dashed;
+    }
+
+    .timeline li.failed .dot {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+    }
+
+    .timeline li.failed .step-label {
+      color: var(--danger);
+      font-weight: 650;
+    }
+
+    .details {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .detail {
+      min-width: 0;
+      padding: 12px 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #f8fafc;
+    }
+
+    .detail-label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .detail-value {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.92rem;
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
+
+    .reason-box {
+      margin: 0 0 18px;
+      padding: 13px 15px;
+      border-radius: 12px;
+      background: var(--danger-soft);
+      border: 1px solid var(--danger-line);
+    }
+
+    .reason-box .detail-label {
+      color: #991b1b;
+    }
+
+    .reason-box p {
+      margin: 5px 0 0;
+      color: #7f1d1d;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .links a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .links a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 14px;
+      }
+
+      .timeline {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .timeline::before {
+        display: none;
+      }
+
+      .timeline li {
+        flex-direction: row;
+        text-align: left;
+      }
+
+      .details {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="badge">Camunda 8 demo</span>
+    <h1>Reserve a table</h1>
+    <p class="subtitle">
+      Tell us who is coming and when. We will check availability, then send the
+      request to our staff for approval. You can follow the result right here.
+    </p>
+
+    <section id="form-section">
+      <form id="reservation-form">
+        <label>
+          Name
+          <input type="text" name="name" placeholder="Ada Lovelace" required />
+        </label>
+
+        <label>
+          Date
+          <input type="date" name="date" required />
+        </label>
+
+        <label>
+          Party size
+          <input type="number" name="partySize" min="1" max="50" value="4" required />
+        </label>
+
+        <button type="submit" class="btn primary">Request reservation</button>
+      </form>
+
+      <div id="form-error" class="alert error" role="alert" hidden></div>
+    </section>
+
+    <section id="status-section" hidden>
+      <div class="status-top" role="status" aria-live="polite">
+        <div id="status-icon" class="status-icon" aria-hidden="true"></div>
+        <div>
+          <h2 id="status-title">Checking availability</h2>
+          <p id="status-message" class="status-message"></p>
+        </div>
+      </div>
+
+      <ol class="timeline" id="timeline" aria-label="Reservation progress">
+        <li data-step="submitted">
+          <span class="dot">1</span>
+          <span class="step-label">Submitted</span>
+        </li>
+        <li data-step="availability">
+          <span class="dot">2</span>
+          <span class="step-label">Availability check</span>
+        </li>
+        <li data-step="staff">
+          <span class="dot">3</span>
+          <span class="step-label">Staff review</span>
+        </li>
+        <li data-step="result">
+          <span class="dot">4</span>
+          <span class="step-label">Result</span>
+        </li>
+      </ol>
+
+      <div id="details" class="details"></div>
+
+      <div id="reason-box" class="reason-box" hidden>
+        <span class="detail-label">Reason</span>
+        <p id="reason-text"></p>
+      </div>
+
+      <div id="poll-error" class="alert error" role="alert" hidden>
+        <p id="poll-error-text"></p>
+        <button id="retry-poll" type="button" class="btn secondary">Try again</button>
+      </div>
+
+      <div id="final-actions" class="actions" hidden>
+        <button id="new-reservation" type="button" class="btn primary">
+          Make another reservation
+        </button>
+      </div>
+    </section>
+
+    <div class="links">
+      <a href="http://localhost:8080/operate" target="_blank" rel="noreferrer">Operate</a>
+      <a href="http://localhost:8080/tasklist" target="_blank" rel="noreferrer">Tasklist</a>
+    </div>
+  </main>
+
+  <script>
+    // Plain browser JavaScript: no framework, no build step.
+    const form = document.getElementById("reservation-form");
+    const formSection = document.getElementById("form-section");
+    const statusSection = document.getElementById("status-section");
+    const formError = document.getElementById("form-error");
+    const statusIcon = document.getElementById("status-icon");
+    const statusTitle = document.getElementById("status-title");
+    const statusMessage = document.getElementById("status-message");
+    const timeline = document.getElementById("timeline");
+    const details = document.getElementById("details");
+    const reasonBox = document.getElementById("reason-box");
+    const reasonText = document.getElementById("reason-text");
+    const finalActions = document.getElementById("final-actions");
+    const pollError = document.getElementById("poll-error");
+    const pollErrorText = document.getElementById("poll-error-text");
+    const retryPoll = document.getElementById("retry-poll");
+    const newReservation = document.getElementById("new-reservation");
+
+    const POLL_INTERVAL_MS = 2000;
+    const MAX_POLL_ERRORS = 3;
+
+    const ICONS = {
+      spinner: '<span class="spinner" aria-hidden="true"></span>',
+      check:
+        '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" ' +
+        'stroke="currentColor" stroke-width="2.5" stroke-linecap="round" ' +
+        'stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
+      cross:
+        '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" ' +
+        'stroke="currentColor" stroke-width="2.5" stroke-linecap="round" ' +
+        'stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+    };
+
+    let currentKey = null;
+    let currentReservation = null;
+    let pollTimer = null;
+    let pollErrors = 0;
+    let pollStopped = true;
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function formatDate(value) {
+      if (!value) return "—";
+      const date = new Date(value + "T00:00:00");
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleDateString(undefined, {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    }
+
+    function stopPolling() {
+      pollStopped = true;
+      if (pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function schedulePoll() {
+      if (pollStopped) return;
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = setTimeout(pollReservation, POLL_INTERVAL_MS);
+    }
+
+    function renderTimeline(status, reason) {
+      const steps = {
+        submitted: "done",
+        availability: "pending",
+        staff: "pending",
+        result: "pending",
+      };
+
+      if (status === "pending-availability") {
+        steps.availability = "active";
+      } else if (status === "awaiting-staff") {
+        steps.availability = "done";
+        steps.staff = "active";
+      } else if (status === "confirmed") {
+        steps.availability = "done";
+        steps.staff = "done";
+        steps.result = "done";
+      } else if (status === "denied") {
+        steps.availability = "done";
+        steps.staff = /maximum of 10/i.test(reason) ? "skipped" : "done";
+        steps.result = "failed";
+      }
+
+      for (const item of timeline.querySelectorAll("li[data-step]")) {
+        const step = item.dataset.step;
+        item.className = steps[step] || "pending";
+      }
+    }
+
+    function renderDetails(reservation) {
+      details.innerHTML =
+        '<div class="detail">' +
+        '<span class="detail-label">Name</span>' +
+        '<span class="detail-value">' +
+        escapeHtml(reservation.name || "—") +
+        "</span>" +
+        "</div>" +
+        '<div class="detail">' +
+        '<span class="detail-label">Date</span>' +
+        '<span class="detail-value">' +
+        escapeHtml(formatDate(reservation.date)) +
+        "</span>" +
+        "</div>" +
+        '<div class="detail">' +
+        '<span class="detail-label">Party size</span>' +
+        '<span class="detail-value">' +
+        escapeHtml(reservation.partySize || "—") +
+        "</span>" +
+        "</div>";
+    }
+
+    function renderStatus(data) {
+      const status = data.status;
+      const reason = data.reason || "";
+      const reservation = {
+        name: data.name || currentReservation?.name || "",
+        date: data.date || currentReservation?.date || "",
+        partySize: Number(data.partySize) || currentReservation?.partySize || 0,
+      };
+      const isFinal = status === "confirmed" || status === "denied";
+
+      formSection.hidden = true;
+      statusSection.hidden = false;
+      statusSection.classList.toggle("final", isFinal);
+      statusSection.classList.toggle("confirmed", status === "confirmed");
+      statusSection.classList.toggle("denied", status === "denied");
+
+      const copy = {
+        "pending-availability": {
+          title: "Checking availability",
+          message:
+            "We are checking whether we can seat your party. This usually takes a moment.",
+          icon: ICONS.spinner,
+          iconClass: "",
+        },
+        "awaiting-staff": {
+          title: "Waiting for staff review",
+          message:
+            "Your request is with our team. This page updates automatically every 2 seconds.",
+          icon: ICONS.spinner,
+          iconClass: "",
+        },
+        confirmed: {
+          title: "Reservation confirmed",
+          message: "You are all set. We look forward to seeing you.",
+          icon: ICONS.check,
+          iconClass: "success",
+        },
+        denied: {
+          title: "Reservation declined",
+          message: reason || "The reservation could not be confirmed.",
+          icon: ICONS.cross,
+          iconClass: "danger",
+        },
+      }[status] || {
+        title: "Updating reservation",
+        message: "We are checking the latest status of your reservation.",
+        icon: ICONS.spinner,
+        iconClass: "",
+      };
+
+      statusIcon.className = ("status-icon " + copy.iconClass).trim();
+      statusIcon.innerHTML = copy.icon;
+      statusTitle.textContent = copy.title;
+      statusMessage.textContent = copy.message;
+
+      renderTimeline(status, reason);
+      renderDetails(reservation);
+
+      reasonBox.hidden = status !== "denied";
+      if (status === "denied") {
+        reasonText.textContent = reason || "No reason was provided.";
+      }
+
+      finalActions.hidden = !isFinal;
+      if (isFinal) {
+        pollError.hidden = true;
+        stopPolling();
+      }
+    }
+
+    function showPollError(message, canRetry) {
+      pollError.hidden = false;
+      pollErrorText.textContent = message;
+      retryPoll.hidden = !canRetry;
+      finalActions.hidden = false;
+      statusTitle.textContent = "Connection problem";
+      statusMessage.textContent =
+        "We lost contact with the reservation service.";
+      statusIcon.className = "status-icon danger";
+      statusIcon.innerHTML = ICONS.cross;
+    }
+
+    async function pollReservation() {
+      pollTimer = null;
+      if (!currentKey || pollStopped) return;
+
+      try {
+        const response = await fetch(
+          "/reservation/" + encodeURIComponent(currentKey),
+          { headers: { Accept: "application/json" } }
+        );
+        const body = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            stopPolling();
+            showPollError(
+              body.error || "We could not find that reservation.",
+              false
+            );
+            return;
+          }
+          throw new Error(
+            body.error || "Request failed (" + response.status + ")"
+          );
+        }
+
+        pollErrors = 0;
+        pollError.hidden = true;
+        renderStatus(body);
+
+        if (body.status === "confirmed" || body.status === "denied") {
+          stopPolling();
+          return;
+        }
+
+        schedulePoll();
+      } catch (error) {
+        pollErrors += 1;
+
+        if (pollErrors >= MAX_POLL_ERRORS) {
+          stopPolling();
+          showPollError(
+            "We cannot reach the reservation service right now. Make sure the " +
+              "demo server and Camunda 8 Run are running, then try again.",
+            true
+          );
+          return;
+        }
+
+        schedulePoll();
+      }
+    }
+
+    function resetToForm() {
+      stopPolling();
+      currentKey = null;
+      currentReservation = null;
+      pollErrors = 0;
+      pollError.hidden = true;
+      formError.hidden = true;
+      statusSection.hidden = true;
+      statusSection.classList.remove("final", "confirmed", "denied");
+      formSection.hidden = false;
+      form.reset();
+      form.elements.partySize.value = "4";
+      form.elements.name.focus();
+    }
+
+    retryPoll.addEventListener("click", () => {
+      if (!currentKey) return;
+      pollError.hidden = true;
+      pollErrors = 0;
+      pollStopped = false;
+      statusTitle.textContent = "Checking reservation";
+      statusMessage.textContent = "Trying to reconnect...";
+      statusIcon.className = "status-icon";
+      statusIcon.innerHTML = ICONS.spinner;
+      pollReservation();
+    });
+
+    newReservation.addEventListener("click", resetToForm);
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      formError.hidden = true;
+
+      const formData = new FormData(form);
+      const payload = {
+        name: String(formData.get("name") || "").trim(),
+        date: String(formData.get("date") || ""),
+        partySize: Number(formData.get("partySize")),
+      };
+
+      try {
+        const response = await fetch("/reserve", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        const body = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(
+            body.error || "Request failed (" + response.status + ")"
+          );
+        }
+
+        currentKey = body.processInstanceKey;
+        currentReservation = payload;
+        pollErrors = 0;
+        pollStopped = false;
+
+        renderStatus({
+          status: "pending-availability",
+          reason: "",
+          ...payload,
+        });
+
+        pollReservation();
+      } catch (error) {
+        const message = /fetch|network/i.test(error.message)
+          ? "We could not reach the demo server. Make sure npm start is running and try again."
+          : error.message;
+        formError.hidden = false;
+        formError.textContent = message;
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    const dateInput = form.elements.date;
+    if (dateInput) {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      dateInput.min = yyyy + "-" + mm + "-" + dd;
+    }
+  </script>
+</body>
+</html>

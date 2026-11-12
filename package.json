@@ -1,0 +1,18 @@
+{
+  "name": "camunda-reservation-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal Camunda 8 reservation demo: Express, REST job workers, no database.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "deploy": "node deploy.js"
+  },
+  "dependencies": {
+    "@camunda8/orchestration-cluster-api": "^10.0.1",
+    "express": "^5.3.0"
+  }
+}

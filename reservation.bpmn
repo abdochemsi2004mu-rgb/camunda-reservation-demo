@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+  xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+  id="Definitions_Reservation"
+  targetNamespace="http://bpmn.io/schema/bpmn"
+  exporter="Camunda Modeler"
+  exporterVersion="5.39.0"
+  modeler:executionPlatform="Camunda Cloud"
+  modeler:executionPlatformVersion="8.10.0">
+
+  <bpmn:process id="reservation" name="Reservation" isExecutable="true">
+
+    <!-- 1. Entry point. The app starts an instance with name, date, partySize. -->
+    <bpmn:startEvent id="StartEvent_ReservationRequested" name="Reservation requested">
+      <bpmn:outgoing>Flow_Start_Check</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- 2. Service task: a worker with job type "check-availability" handles this. -->
+    <bpmn:serviceTask id="Activity_CheckAvailability" name="Check availability">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="check-availability" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Start_Check</bpmn:incoming>
+      <bpmn:outgoing>Flow_Check_Gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 3. Exclusive gateway: chooses exactly one outgoing path based on "available". -->
+    <bpmn:exclusiveGateway
+      id="Gateway_Available"
+      name="Available?"
+      default="Flow_Gateway_Rejected">
+      <bpmn:incoming>Flow_Check_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Gateway_Confirmed</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Gateway_Rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!--
+      4. Native Camunda user task with a linked Camunda Form.
+      <zeebe:userTask /> makes this a Camunda user task (managed by the engine),
+      and formId references staff-decision.form, which is deployed with this BPMN.
+    -->
+    <bpmn:userTask id="Activity_StaffConfirms" name="Staff confirms">
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:formDefinition formId="Form_StaffDecision" bindingType="deployment" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Gateway_Confirmed</bpmn:incoming>
+      <bpmn:outgoing>Flow_Staff_Gateway</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- 5. Exclusive gateway: staff decision is stored in the "approved" variable. -->
+    <bpmn:exclusiveGateway
+      id="Gateway_StaffApproved"
+      name="Approved?"
+      default="Flow_Staff_Rejected">
+      <bpmn:incoming>Flow_Staff_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Staff_Approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Staff_Rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- 6. Service task: worker with job type "send-confirmation" sets the final status. -->
+    <bpmn:serviceTask id="Activity_SendConfirmation" name="Send confirmation">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="send-confirmation" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Staff_Approved</bpmn:incoming>
+      <bpmn:outgoing>Flow_Send_Confirmed</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="EndEvent_Confirmed" name="Confirmed">
+      <bpmn:incoming>Flow_Send_Confirmed</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- 4b. Rejected path: taken when there is no available table (party > 10). -->
+    <bpmn:endEvent id="EndEvent_Rejected" name="Rejected">
+      <bpmn:incoming>Flow_Gateway_Rejected</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- 7. Staff declined: persist status/reason before ending. -->
+    <bpmn:serviceTask id="Activity_RecordStaffDenial" name="Record staff denial">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="record-staff-denial" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Staff_Rejected</bpmn:incoming>
+      <bpmn:outgoing>Flow_RecordDenial_RejectedByStaff</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="EndEvent_RejectedByStaff" name="Rejected by staff">
+      <bpmn:incoming>Flow_RecordDenial_RejectedByStaff</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_Start_Check"
+      sourceRef="StartEvent_ReservationRequested"
+      targetRef="Activity_CheckAvailability" />
+
+    <bpmn:sequenceFlow id="Flow_Check_Gateway"
+      sourceRef="Activity_CheckAvailability"
+      targetRef="Gateway_Available" />
+
+    <!-- FEEL expression: true only when the worker set available = true. -->
+    <bpmn:sequenceFlow id="Flow_Gateway_Confirmed" name="true"
+      sourceRef="Gateway_Available"
+      targetRef="Activity_StaffConfirms">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= available = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Default flow: used when no condition matches (available = false). -->
+    <bpmn:sequenceFlow id="Flow_Gateway_Rejected" name="false"
+      sourceRef="Gateway_Available"
+      targetRef="EndEvent_Rejected" />
+
+    <bpmn:sequenceFlow id="Flow_Staff_Gateway"
+      sourceRef="Activity_StaffConfirms"
+      targetRef="Gateway_StaffApproved" />
+
+    <!-- FEEL expression: true only when the linked form set approved = true. -->
+    <bpmn:sequenceFlow id="Flow_Staff_Approved" name="true"
+      sourceRef="Gateway_StaffApproved"
+      targetRef="Activity_SendConfirmation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= approved = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Default flow: staff left "Approve reservation?" unchecked. -->
+    <bpmn:sequenceFlow id="Flow_Staff_Rejected" name="false"
+      sourceRef="Gateway_StaffApproved"
+      targetRef="Activity_RecordStaffDenial" />
+
+    <bpmn:sequenceFlow id="Flow_Send_Confirmed"
+      sourceRef="Activity_SendConfirmation"
+      targetRef="EndEvent_Confirmed" />
+
+    <bpmn:sequenceFlow id="Flow_RecordDenial_RejectedByStaff"
+      sourceRef="Activity_RecordStaffDenial"
+      targetRef="EndEvent_RejectedByStaff" />
+  </bpmn:process>
+
+  <!-- Diagram information (BPMNDI) so the file opens with a visible layout in Camunda Modeler. -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Reservation">
+    <bpmndi:BPMNPlane id="BPMNPlane_Reservation" bpmnElement="reservation">
+
+      <bpmndi:BPMNShape id="StartEvent_ReservationRequested_di" bpmnElement="StartEvent_ReservationRequested">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="126" y="145" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Activity_CheckAvailability_di" bpmnElement="Activity_CheckAvailability">
+        <dc:Bounds x="240" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_Available_di" bpmnElement="Gateway_Available" isMarkerVisible="true">
+        <dc:Bounds x="395" y="95" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="386" y="65" width="68" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Activity_StaffConfirms_di" bpmnElement="Activity_StaffConfirms">
+        <dc:Bounds x="500" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_StaffApproved_di" bpmnElement="Gateway_StaffApproved" isMarkerVisible="true">
+        <dc:Bounds x="655" y="95" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="646" y="65" width="68" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Activity_SendConfirmation_di" bpmnElement="Activity_SendConfirmation">
+        <dc:Bounds x="760" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_Confirmed_di" bpmnElement="EndEvent_Confirmed">
+        <dc:Bounds x="920" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="910" y="145" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_Rejected_di" bpmnElement="EndEvent_Rejected">
+        <dc:Bounds x="500" y="240" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="492" y="283" width="52" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Activity_RecordStaffDenial_di" bpmnElement="Activity_RecordStaffDenial">
+        <dc:Bounds x="760" y="220" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_RejectedByStaff_di" bpmnElement="EndEvent_RejectedByStaff">
+        <dc:Bounds x="920" y="242" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="888" y="285" width="100" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Flow_Start_Check_di" bpmnElement="Flow_Start_Check">
+        <di:waypoint x="188" y="120" />
+        <di:waypoint x="240" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Check_Gateway_di" bpmnElement="Flow_Check_Gateway">
+        <di:waypoint x="340" y="120" />
+        <di:waypoint x="395" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Gateway_Confirmed_di" bpmnElement="Flow_Gateway_Confirmed">
+        <di:waypoint x="445" y="120" />
+        <di:waypoint x="500" y="120" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="462" y="102" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Gateway_Rejected_di" bpmnElement="Flow_Gateway_Rejected">
+        <di:waypoint x="420" y="145" />
+        <di:waypoint x="420" y="258" />
+        <di:waypoint x="500" y="258" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="424" y="182" width="26" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Staff_Gateway_di" bpmnElement="Flow_Staff_Gateway">
+        <di:waypoint x="600" y="120" />
+        <di:waypoint x="655" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Staff_Approved_di" bpmnElement="Flow_Staff_Approved">
+        <di:waypoint x="705" y="120" />
+        <di:waypoint x="760" y="120" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="722" y="102" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Staff_Rejected_di" bpmnElement="Flow_Staff_Rejected">
+        <di:waypoint x="680" y="145" />
+        <di:waypoint x="680" y="260" />
+        <di:waypoint x="760" y="260" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="684" y="182" width="26" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Send_Confirmed_di" bpmnElement="Flow_Send_Confirmed">
+        <di:waypoint x="860" y="120" />
+        <di:waypoint x="920" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RecordDenial_RejectedByStaff_di" bpmnElement="Flow_RecordDenial_RejectedByStaff">
+        <di:waypoint x="860" y="260" />
+        <di:waypoint x="920" y="260" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

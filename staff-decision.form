@@ -1,0 +1,51 @@
+{
+  "components": [
+    {
+      "type": "checkbox",
+      "id": "Field_Approved",
+      "key": "approved",
+      "label": "Approve reservation?",
+      "defaultValue": false,
+      "layout": {
+        "row": "Row_1",
+        "columns": null
+      }
+    },
+    {
+      "type": "textfield",
+      "id": "Field_Reason",
+      "key": "reason",
+      "label": "Reason if declined",
+      "description": "Shown to the guest when the reservation is declined.",
+      "layout": {
+        "row": "Row_2",
+        "columns": null
+      },
+      "conditional": {
+        "hide": "=approved = true"
+      },
+      "validate": {
+        "required": false
+      }
+    },
+    {
+      "type": "button",
+      "id": "Field_Submit",
+      "label": "Complete task",
+      "action": "submit",
+      "layout": {
+        "row": "Row_3",
+        "columns": null
+      }
+    }
+  ],
+  "type": "default",
+  "id": "Form_StaffDecision",
+  "schemaVersion": 18,
+  "executionPlatform": "Camunda Cloud",
+  "executionPlatformVersion": "8.10.0",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.39.0"
+  }
+}
