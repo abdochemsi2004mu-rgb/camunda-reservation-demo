@@ -331,6 +331,17 @@
       font-weight: 650;
     }
 
+    .timeline li.timedout .dot {
+      background: #b45309;
+      border-color: #b45309;
+      color: #fff;
+    }
+
+    .timeline li.timedout .step-label {
+      color: #b45309;
+      font-weight: 650;
+    }
+
     .details {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -614,7 +625,13 @@
         steps.result = "done";
       } else if (status === "denied") {
         steps.availability = "done";
-        steps.staff = /maximum of 10/i.test(reason) ? "skipped" : "done";
+        if (/maximum of 10/i.test(reason)) {
+          steps.staff = "skipped";
+        } else if (/no staff response/i.test(reason)) {
+          steps.staff = "timedout";
+        } else {
+          steps.staff = "done";
+        }
         steps.result = "failed";
       }
 
@@ -684,7 +701,7 @@
           iconClass: "success",
         },
         denied: {
-          title: "Reservation declined",
+          title: /no staff response/i.test(reason) ? "Reservation timed out" : "Reservation declined",
           message: reason || "The reservation could not be confirmed.",
           icon: ICONS.cross,
           iconClass: "danger",

@@ -121,6 +121,7 @@ function parseVariableValue(value) {
 
 function deriveReservationStatus({ state, variables, activeElementId }) {
   // The final workers always write "status" before the process ends.
+  // The timeout path (Record timeout script task) also sets status="denied".
   if (variables.status === "confirmed" || variables.status === "denied") {
     return variables.status;
   }

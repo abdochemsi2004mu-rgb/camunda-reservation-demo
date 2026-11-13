@@ -54,6 +54,36 @@
       <bpmn:outgoing>Flow_Staff_Gateway</bpmn:outgoing>
     </bpmn:userTask>
 
+    <!-- Timer boundary event: fires if staff does not respond within 2 minutes.
+         "Interrupting" means this event cancels the attached user task when it fires.
+         The task is removed from Tasklist and the process proceeds to the timeout path. -->
+    <bpmn:boundaryEvent id="TimerBoundary_NoStaffResponse"
+      name="No staff response"
+      attachedToRef="Activity_StaffConfirms"
+      cancelActivity="true">
+      <bpmn:timerEventDefinition id="Timer_Delay">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT2M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>Flow_Timer_RecordTimeout</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Script task: records the timeout status and reason via a FEEL script.
+         No new worker is needed; the script runs inside the Camunda engine. -->
+    <bpmn:scriptTask id="Activity_RecordTimeout" name="Record timeout">
+      <bpmn:extensionElements>
+        <zeebe:script format="feel">
+= { "status": "denied", "reason": "No staff response within 2 minutes" }
+        </zeebe:script>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Timer_RecordTimeout</bpmn:incoming>
+      <bpmn:outgoing>Flow_RecordTimeout_TimedOut</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <!-- End event: process ends with a timed-out status. -->
+    <bpmn:endEvent id="EndEvent_TimedOut" name="Timed out">
+      <bpmn:incoming>Flow_RecordTimeout_TimedOut</bpmn:incoming>
+    </bpmn:endEvent>
+
     <!-- 5. Exclusive gateway: staff decision is stored in the "approved" variable. -->
     <bpmn:exclusiveGateway
       id="Gateway_StaffApproved"
@@ -259,6 +289,39 @@
       <bpmndi:BPMNEdge id="Flow_RecordDenial_RejectedByStaff_di" bpmnElement="Flow_RecordDenial_RejectedByStaff">
         <di:waypoint x="860" y="260" />
         <di:waypoint x="920" y="260" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Timer boundary event shape and label -->
+      <bpmndi:BPMNShape id="TimerBoundary_NoStaffResponse_di" bpmnElement="TimerBoundary_NoStaffResponse">
+        <dc:Bounds x="532" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="380" y="155" width="130" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Script task shape -->
+      <bpmndi:BPMNShape id="Activity_RecordTimeout_di" bpmnElement="Activity_RecordTimeout">
+        <dc:Bounds x="500" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Timed out end event shape and label -->
+      <bpmndi:BPMNShape id="EndEvent_TimedOut_di" bpmnElement="EndEvent_TimedOut">
+        <dc:Bounds x="500" y="380" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="480" y="420" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Edge: timer boundary event to record timeout script task -->
+      <bpmndi:BPMNEdge id="Flow_Timer_RecordTimeout_di" bpmnElement="Flow_Timer_RecordTimeout">
+        <di:waypoint x="550" y="178" />
+        <di:waypoint x="550" y="260" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Edge: record timeout script task to timed out end event -->
+      <bpmndi:BPMNEdge id="Flow_RecordTimeout_TimedOut_di" bpmnElement="Flow_RecordTimeout_TimedOut">
+        <di:waypoint x="550" y="340" />
+        <di:waypoint x="518" y="380" />
       </bpmndi:BPMNEdge>
 
     </bpmndi:BPMNPlane>

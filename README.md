@@ -19,6 +19,8 @@ flowchart TD
   Deny --> RejectedByStaff([Rejected by staff])
 ```
 
+*Boundary event note:* the diagram omits the **interrupting timer boundary event** on "Staff confirms". A boundary event is attached to an activity and triggers when a condition occurs — here a timer of PT2M. When it fires, it cancels the user task (removing it from Tasklist) and proceeds to a "Record timeout" FEEL script task that sets status="denied" and reason="No staff response within 2 minutes", then ends at "Timed out".
+
 1. The browser form sends the name, date and party size to the Express server.
 2. The server starts a Camunda process instance.
 3. Workers in the same Node.js process handle the automated steps.
@@ -66,7 +68,10 @@ To stop: press `Ctrl+C` in terminal 2, then run `.\c8run.exe stop` in the Camund
 | Party size | What happens                                                                                                |
 | ---------- | ----------------------------------------------------------------------------------------------------------- |
 | 4          | Waits in Tasklist. Approve it and it is confirmed. Decline it with a reason and the page shows that reason. |
+| 4          | Leave the task untouched and after 2 minutes it is denied: "No staff response within 2 minutes". The Staff review step is marked as timed out. |
 | 12         | Denied immediately: "Party size exceeds the maximum of 10".                                                 |
+
+*Tip for experimenting:* to shorten the timer, edit the `<bpmn:timeDuration>` in `reservation.bpmn` (change `PT2M` to `PT20S` for 20 seconds) and run `npm run deploy`.
 
 ## Project files
 
