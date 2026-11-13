@@ -53,43 +53,47 @@ Open <http://localhost:3000>.
 
 `npm start` deploys the process and form, starts the workers, and serves the page.
 
-| Page | URL |
-| --- | --- |
-| Reservation form | http://localhost:3000 |
-| Operate (watch instances) | http://localhost:8080/operate |
+| Page                          | URL                            |
+| ----------------------------- | ------------------------------ |
+| Reservation form              | http://localhost:3000          |
+| Operate (watch instances)     | http://localhost:8080/operate  |
 | Tasklist (staff approve here) | http://localhost:8080/tasklist |
 
 To stop: press `Ctrl+C` in terminal 2, then run `.\c8run.exe stop` in the Camunda folder.
 
 ## Try it
 
-| Party size | What happens |
-| --- | --- |
-| 4 | Waits in Tasklist. Approve it and it is confirmed. Decline it with a reason and the page shows that reason. |
-| 12 | Denied immediately: "Party size exceeds the maximum of 10". |
+| Party size | What happens                                                                                                |
+| ---------- | ----------------------------------------------------------------------------------------------------------- |
+| 4          | Waits in Tasklist. Approve it and it is confirmed. Decline it with a reason and the page shows that reason. |
+| 12         | Denied immediately: "Party size exceeds the maximum of 10".                                                 |
 
 ## Project files
 
-| File | Purpose |
-| --- | --- |
-| `reservation.bpmn` | The process model |
-| `staff-decision.form` | The form staff fill in Tasklist |
-| `server.js` | Express server, API endpoints and the three workers |
-| `camunda.js` | Camunda client and deployment helper |
-| `deploy.js` | Deploys the process without starting the app (`npm run deploy`) |
-| `public/index.html` | The reservation page |
+| File                  | Purpose                                                         |
+| --------------------- | --------------------------------------------------------------- |
+| `reservation.bpmn`    | The process model                                               |
+| `staff-decision.form` | The form staff fill in Tasklist                                 |
+| `server.js`           | Express server, API endpoints and the three workers             |
+| `camunda.js`          | Camunda client and deployment helper                            |
+| `deploy.js`           | Deploys the process without starting the app (`npm run deploy`) |
+| `public/index.html`   | The reservation page                                            |
 
 The three workers handle the job types `check-availability`, `send-confirmation` and `record-staff-denial`.
 
 ## Troubleshooting
 
-| Problem | Fix |
-| --- | --- |
-| `c8run.exe is not recognized` | You are in the wrong folder. `cd` to the Camunda folder first. |
-| `port 8080 is already in use` | Camunda is already running. Skip the start step. |
-| `npm start` says `fetch failed` | Camunda is not ready. Check <http://localhost:8080/v2/topology> and retry. |
-| No task in Tasklist | Check Operate. The task must be a native user task (`zeebe:userTask`), and party size must be 10 or less. |
-| Changed the BPMN but nothing changed | Run `npm run deploy`, then start a new reservation. Old instances keep their old version. |
+| Problem                              | Fix                                                                                                       |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `c8run.exe is not recognized`        | You are in the wrong folder. `cd` to the Camunda folder first.                                            |
+| `port 8080 is already in use`        | Camunda is already running. Skip the start step.                                                          |
+| `npm start` says `fetch failed`      | Camunda is not ready. Check <http://localhost:8080/v2/topology> and retry.                                |
+| No task in Tasklist                  | Check Operate. The task must be a native user task (`zeebe:userTask`), and party size must be 10 or less. |
+| Changed the BPMN but nothing changed | Run `npm run deploy`, then start a new reservation. Old instances keep their old version.                 |
+
+## Drawing the process
+
+Step-by-step guide to drawing the BPMN diagram and form in Camunda Modeler: [docs/drawing-the-process.md](docs/drawing-the-process.md)
 
 ## Learn more
 
