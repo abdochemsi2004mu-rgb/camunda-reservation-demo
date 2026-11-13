@@ -84,7 +84,7 @@ To stop: press `Ctrl+C` in terminal 2, then run `.\c8run.exe stop` in the Camund
 | `deploy.js`           | Deploys the process without starting the app (`npm run deploy`) |
 | `public/index.html`   | The reservation page                                            |
 
-The three workers handle the job types `check-availability`, `send-confirmation` and `record-staff-denial`.
+The three workers handle the job types `check-availability`, `send-confirmation`, `record-staff-denial` and `record-timeout`.
 
 ## Troubleshooting
 
