@@ -374,6 +374,36 @@ function startRecordStaffDenialWorker() {
 }
 
 // ---------------------------------------------------------------------------
+// Job worker: record-timeout
+//
+// The timer boundary event fires when staff does not respond within 2 minutes.
+// This worker persists the final denied status and a standard reason.
+// ---------------------------------------------------------------------------
+function startRecordTimeoutWorker() {
+  camunda.createJobWorker({
+    jobType: "record-timeout",
+    workerName: "reservation-record-timeout",
+    maxParallelJobs: 10,
+    jobTimeoutMs: 30_000,
+    pollIntervalMs: 500,
+    jobHandler: async (job) => {
+      const { name } = job.variables;
+
+      console.log(
+        `[record-timeout] Reservation timed out for ${name ?? "guest"}`
+      );
+
+      return job.complete({
+        status: "denied",
+        reason: "No staff response within 2 minutes",
+      });
+    },
+  });
+
+  console.log("[worker] Listening for job type: record-timeout");
+}
+
+// ---------------------------------------------------------------------------
 // Startup
 // ---------------------------------------------------------------------------
 async function main() {
@@ -391,6 +421,7 @@ async function main() {
   startCheckAvailabilityWorker();
   startSendConfirmationWorker();
   startRecordStaffDenialWorker();
+  startRecordTimeoutWorker();
 
   const server = app.listen(PORT, () => {
     console.log(`[web] Reservation demo: http://localhost:${PORT}`);

@@ -67,11 +67,11 @@
       </bpmn:timerEventDefinition>
     </bpmn:boundaryEvent>
 
-<!-- Script task: records the timeout status and reason via a FEEL script.
+<!-- Script task: records the timeout status and reason.
          No new worker is needed; the script runs inside the Camunda engine. -->
     <bpmn:scriptTask id="Activity_RecordTimeout" name="Record timeout">
       <bpmn:extensionElements>
-        <zeebe:script>= { "status": "denied", "reason": "No staff response within 2 minutes" }</zeebe:script>
+        <zeebe:taskDefinition type="record-timeout" />
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_Timer_RecordTimeout</bpmn:incoming>
       <bpmn:outgoing>Flow_RecordTimeout_TimedOut</bpmn:outgoing>
