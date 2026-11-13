@@ -61,19 +61,17 @@
       name="No staff response"
       attachedToRef="Activity_StaffConfirms"
       cancelActivity="true">
+      <bpmn:outgoing>Flow_Timer_RecordTimeout</bpmn:outgoing>
       <bpmn:timerEventDefinition id="Timer_Delay">
         <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT2M</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
-      <bpmn:outgoing>Flow_Timer_RecordTimeout</bpmn:outgoing>
     </bpmn:boundaryEvent>
 
-    <!-- Script task: records the timeout status and reason via a FEEL script.
+<!-- Script task: records the timeout status and reason via a FEEL script.
          No new worker is needed; the script runs inside the Camunda engine. -->
     <bpmn:scriptTask id="Activity_RecordTimeout" name="Record timeout">
       <bpmn:extensionElements>
-        <zeebe:script format="feel">
-= { "status": "denied", "reason": "No staff response within 2 minutes" }
-        </zeebe:script>
+        <zeebe:script>= { "status": "denied", "reason": "No staff response within 2 minutes" }</zeebe:script>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_Timer_RecordTimeout</bpmn:incoming>
       <bpmn:outgoing>Flow_RecordTimeout_TimedOut</bpmn:outgoing>
@@ -168,6 +166,14 @@
     <bpmn:sequenceFlow id="Flow_RecordDenial_RejectedByStaff"
       sourceRef="Activity_RecordStaffDenial"
       targetRef="EndEvent_RejectedByStaff" />
+
+    <bpmn:sequenceFlow id="Flow_Timer_RecordTimeout"
+      sourceRef="TimerBoundary_NoStaffResponse"
+      targetRef="Activity_RecordTimeout" />
+
+    <bpmn:sequenceFlow id="Flow_RecordTimeout_TimedOut"
+      sourceRef="Activity_RecordTimeout"
+      targetRef="EndEvent_TimedOut" />
   </bpmn:process>
 
   <!-- Diagram information (BPMNDI) so the file opens with a visible layout in Camunda Modeler. -->
